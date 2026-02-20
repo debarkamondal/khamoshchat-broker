@@ -189,8 +189,6 @@ name = "khamoshchat-broker"
 version = "0.1.0"
 dependencies = [
  "rumqttc",
- "rustls",
- "rustls-native-certs",
  "serde",
  "serde_json",
  "tokio",

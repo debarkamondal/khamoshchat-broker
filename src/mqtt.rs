@@ -1,36 +1,35 @@
-use rumqttc::{AsyncClient, Event, EventLoop, MqttOptions, Packet, QoS, Transport};
-use rustls::ClientConfig;
+use rumqttc::{AsyncClient, Event, EventLoop, MqttOptions, Packet, QoS};
 use std::time::Duration;
 
 use crate::messages::handle;
 
 pub fn client_init() -> (AsyncClient, rumqttc::EventLoop) {
-    let roots = rustls_native_certs::load_native_certs().expect("could not load native certs");
+    // let roots = rustls_native_certs::load_native_certs().expect("could not load native certs");
+    //
+    // let mut root_store = rustls::RootCertStore::empty();
+    // for cert in roots {
+    //     root_store.add(cert).unwrap();
+    // }
+    //
+    // let tls_config = ClientConfig::builder()
+    //     .with_root_certificates(root_store)
+    //     .with_no_client_auth();
 
-    let mut root_store = rustls::RootCertStore::empty();
-    for cert in roots {
-        root_store.add(cert).unwrap();
-    }
-
-    let tls_config = ClientConfig::builder()
-        .with_root_certificates(root_store)
-        .with_no_client_auth();
-
-    let mut opts = MqttOptions::new("my-client", "mqtt.dkmondal.in", 8883);
+    let mut opts = MqttOptions::new("my-client", "127.0.0.1", 8883);
     opts.set_credentials("dezire", "test1234");
     opts.set_keep_alive(Duration::from_secs(5));
-    opts.set_transport(Transport::tls_with_config(tls_config.into()));
+    // opts.set_transport(Transport::tls_with_config(tls_config.into()));
 
     AsyncClient::new(opts, 10)
 }
 
 pub async fn run(client: AsyncClient) {
     client
-        .subscribe("khamoshchat/test/#", QoS::AtMostOnce)
+        .subscribe("/khamoshchat/#", QoS::AtMostOnce)
         .await
         .unwrap();
     client
-        .publish("khamoshchat/test", QoS::AtLeastOnce, false, "hello!")
+        .publish("/khamoshchat/test", QoS::AtLeastOnce, false, "hello!")
         .await
         .unwrap();
     tokio::time::sleep(Duration::from_secs(5)).await;
@@ -42,7 +41,7 @@ pub async fn start_eventloop(mut eventloop: EventLoop, client: AsyncClient) {
             Ok(Event::Incoming(Packet::ConnAck(_))) => {
                 println!("Connected to MQTT broker");
                 client
-                    .subscribe("khamoshchat/test/#", QoS::AtLeastOnce)
+                    .subscribe("/khamoshchat/#", QoS::AtLeastOnce)
                     .await
                     .unwrap();
                 println!("Subscribed to all topics (#)");
