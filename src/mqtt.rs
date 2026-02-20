@@ -2,7 +2,9 @@ use rumqttc::{AsyncClient, Event, EventLoop, MqttOptions, Packet, QoS, Transport
 use rustls::ClientConfig;
 use std::time::Duration;
 
-fn tls_config() -> ClientConfig {
+use crate::messages::handle;
+
+pub fn client_init() -> (AsyncClient, rumqttc::EventLoop) {
     let roots = rustls_native_certs::load_native_certs().expect("could not load native certs");
 
     let mut root_store = rustls::RootCertStore::empty();
@@ -10,20 +12,15 @@ fn tls_config() -> ClientConfig {
         root_store.add(cert).unwrap();
     }
 
-    ClientConfig::builder()
+    let tls_config = ClientConfig::builder()
         .with_root_certificates(root_store)
-        .with_no_client_auth()
-}
+        .with_no_client_auth();
 
-pub fn client_init() -> (AsyncClient, rumqttc::EventLoop) {
     let mut opts = MqttOptions::new("my-client", "mqtt.dkmondal.in", 8883);
     opts.set_credentials("dezire", "test1234");
     opts.set_keep_alive(Duration::from_secs(5));
-    opts.set_transport(Transport::tls_with_config(tls_config().into()));
+    opts.set_transport(Transport::tls_with_config(tls_config.into()));
 
-    // let tls_config = TlsConfiguration::default();
-    // opts.set_transport(Transport::tls_with_config(tls_config));
-    // let (client, mut eventloop) = AsyncClient::new(opts, 10);
     AsyncClient::new(opts, 10)
 }
 
@@ -39,17 +36,6 @@ pub async fn run(client: AsyncClient) {
     tokio::time::sleep(Duration::from_secs(5)).await;
 }
 
-async fn handle(_client: AsyncClient, msg: rumqttc::Publish) {
-    let payload = std::str::from_utf8(&msg.payload).unwrap_or("invalid utf8");
-    println!("Received on {}: {}", msg.topic, payload);
-
-    // process and forward
-    // client
-    //     .publish("recipient/topic", QoS::AtLeastOnce, false, payload)
-    //     .await
-    //     .unwrap();
-}
-
 pub async fn start_eventloop(mut eventloop: EventLoop, client: AsyncClient) {
     loop {
         match eventloop.poll().await {
@@ -62,7 +48,10 @@ pub async fn start_eventloop(mut eventloop: EventLoop, client: AsyncClient) {
                 println!("Subscribed to all topics (#)");
             }
             Ok(Event::Incoming(Packet::Publish(p))) => {
-                handle(client.clone(), p).await;
+                let client = client.clone();
+                tokio::spawn(async move {
+                    handle(client, p).await;
+                });
             }
             Ok(_) => {}
             Err(e) => {
@@ -73,19 +62,3 @@ pub async fn start_eventloop(mut eventloop: EventLoop, client: AsyncClient) {
         }
     }
 }
-// pub async fn start_eventloop(mut eventloop: rumqttc::EventLoop, client: AsyncClient) {
-//     while let Ok(event) = eventloop.poll().await {
-//         // if let Event::Incoming(Packet::Publish(p)) = event {
-//         //     println!("Received: {:?}", p.payload);
-//         // }
-//         match event {
-//             Event::Incoming(Packet::ConnAck(_)) => {
-//                 println!("Connected to MQTT broker");
-//             }
-//             Event::Incoming(Packet::Publish(p)) => {
-//                 handle(client.clone(), p).await;
-//             }
-//             _ => {}
-//         }
-//     }
-// }
