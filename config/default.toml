@@ -1,0 +1,12 @@
+# Khamoshchat Broker Default Configuration
+#
+# These values can also be overridden via environment variables:
+#   BROKER_HOST, BROKER_PORT, RUST_LOG
+
+[broker]
+host = "0.0.0.0"
+port = 1883
+
+[logging]
+level = "info"
+# Filter plugin-specific logs: "khamoshchat=debug"
